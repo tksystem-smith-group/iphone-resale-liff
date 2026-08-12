@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>初期情報入力</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 16px; color: #222; }
+  h1 { font-size: 18px; }
+  fieldset { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px; padding: 12px; }
+  legend { font-weight: bold; color: #333; }
+  label { display: block; margin-top: 10px; font-size: 14px; }
+  input, select { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+  .row { display: flex; gap: 8px; }
+  .row > div { flex: 1; }
+  button { width: 100%; padding: 14px; font-size: 16px; background: #06c755; color: #fff; border: none; border-radius: 6px; margin-top: 8px; }
+  button:disabled { background: #aaa; }
+  #status { margin-top: 12px; font-size: 14px; }
+  #loading { padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div id="loading">読み込み中...</div>
+<form id="form" style="display:none">
+  <h1>初期情報入力</h1>
+
+  <fieldset>
+    <legend>基本情報</legend>
+    <label>氏名<input type="text" id="name" required></label>
+    <label>フリガナ<input type="text" id="nameKana" required></label>
+    <label>電話番号<input type="tel" id="phone" required></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>送付元住所</legend>
+    <label>郵便番号<input type="text" id="zip" required></label>
+    <label>都道府県<input type="text" id="prefecture" required></label>
+    <label>市区町村<input type="text" id="city" required></label>
+    <label>番地<input type="text" id="address" required></label>
+    <label>建物名（任意）<input type="text" id="building"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>返金先口座（銀行振込のみ）</legend>
+    <label>銀行名<input type="text" id="bankName" required></label>
+    <label>支店名<input type="text" id="branchName" required></label>
+    <label>預金種別
+      <select id="accountType" required>
+        <option value="普通">普通</option>
+        <option value="当座">当座</option>
+      </select>
+    </label>
+    <label>口座番号<input type="text" id="accountNumber" required></label>
+    <label>口座名義（カナ）<input type="text" id="accountHolder" required></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>本人確認書類</legend>
+    <label>種別
+      <select id="idDocType" required>
+        <option value="運転免許証">運転免許証</option>
+        <option value="マイナンバーカード">マイナンバーカード</option>
+        <option value="パスポート">パスポート</option>
+      </select>
+    </label>
+    <label>画像を選択<input type="file" id="idDocFile" accept="image/*" required></label>
+  </fieldset>
+
+  <label><input type="checkbox" id="agree" style="width:auto;display:inline;margin-right:6px" required>利用規約に同意します（弊社が買取る形での取引となります）</label>
+
+  <button type="submit" id="submitBtn">送信する</button>
+  <div id="status"></div>
+</form>
+
+<script>
+var LIFF_ID = '2011082249-Jzho7aco';
+var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwunrebM2Ppgeg6fxpftXo8sIsDxP5IRGPQ8-oQTiwa7U-Ouvs_Yvl9kAG10zbahgR3/exec';
+var userId = null;
+
+function fileToBase64(file) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () { resolve(reader.result.split(',')[1]); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+liff.init({ liffId: LIFF_ID }).then(function () {
+  if (!liff.isLoggedIn()) {
+    liff.login();
+    return;
+  }
+  return liff.getProfile();
+}).then(function (profile) {
+  if (!profile) return;
+  userId = profile.userId;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('form').style.display = 'block';
+}).catch(function (err) {
+  document.getElementById('loading').textContent = 'エラー: ' + err;
+});
+
+document.getElementById('form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('submitBtn');
+  var statusEl = document.getElementById('status');
+  btn.disabled = true;
+  statusEl.textContent = '送信中...';
+
+  var file = document.getElementById('idDocFile').files[0];
+  fileToBase64(file).then(function (base64) {
+    var payload = {
+      uid: userId,
+      name: document.getElementById('name').value,
+      nameKana: document.getElementById('nameKana').value,
+      phone: document.getElementById('phone').value,
+      zip: document.getElementById('zip').value,
+      prefecture: document.getElementById('prefecture').value,
+      city: document.getElementById('city').value,
+      address: document.getElementById('address').value,
+      building: document.getElementById('building').value,
+      bankName: document.getElementById('bankName').value,
+      branchName: document.getElementById('branchName').value,
+      accountType: document.getElementById('accountType').value,
+      accountNumber: document.getElementById('accountNumber').value,
+      accountHolder: document.getElementById('accountHolder').value,
+      idDocType: document.getElementById('idDocType').value,
+      idDocFileName: file.name,
+      idDocMimeType: file.type,
+      idDocBase64: base64
+    };
+    return fetch(WEB_APP_URL + '?action=submitProfile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+  }).then(function () {
+    statusEl.textContent = '送信が完了しました。このページを閉じてLINEにお戻りください。';
+    document.getElementById('form').querySelectorAll('input,select,button').forEach(function (el) { el.disabled = true; });
+    setTimeout(function () { liff.closeWindow(); }, 2000);
+  }).catch(function (err) {
+    statusEl.textContent = 'エラーが発生しました。もう一度お試しください。';
+    btn.disabled = false;
+  });
+});
+</script>
+</body>
+</html>
