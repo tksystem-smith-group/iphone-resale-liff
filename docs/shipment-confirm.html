@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>買取金額承諾＆発送報告</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 16px; color: #222; }
+  h1 { font-size: 18px; }
+  p.lede { font-size: 13px; color: #555; margin-top: -4px; }
+  .shipment-no { background: #f4f4f4; border-radius: 6px; padding: 12px; font-size: 15px; margin: 12px 0 20px; }
+  .shipment-no b { font-size: 20px; color: #06c755; }
+  label { display: block; margin-top: 14px; font-size: 14px; }
+  input { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+  .checkbox-row { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; font-size: 14px; }
+  .checkbox-row input { width: auto; margin-top: 2px; }
+  button { width: 100%; padding: 14px; font-size: 16px; background: #06c755; color: #fff; border: none; border-radius: 6px; margin-top: 20px; }
+  button:disabled { background: #aaa; }
+  #status { margin-top: 12px; font-size: 14px; }
+  #loading { padding: 40px 0; text-align: center; }
+  #error { padding: 40px 16px; text-align: center; color: #c00; display: none; }
+</style>
+</head>
+<body>
+<div id="loading">読み込み中...</div>
+<div id="error"></div>
+
+<form id="form" style="display:none">
+  <h1>買取金額承諾＆発送報告</h1>
+  <p class="lede">確定連絡の内容にご承諾のうえ、発送情報をご報告ください。</p>
+
+  <div class="shipment-no">納品番号　<b id="shipmentNoDisplay"></b></div>
+
+  <div class="checkbox-row">
+    <input type="checkbox" id="numberWritten" required>
+    <label for="numberWritten" style="margin:0">宛先の右側に納品番号を記入しました</label>
+  </div>
+
+  <label>配送追跡番号<input type="text" id="trackingNumber" required></label>
+
+  <button type="submit" id="submitBtn">承諾して送信する</button>
+  <div id="status"></div>
+</form>
+
+<script>
+var LIFF_ID = 'LIFF_ID_SHIPMENT_CONFIRM_PLACEHOLDER';
+var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwunrebM2Ppgeg6fxpftXo8sIsDxP5IRGPQ8-oQTiwa7U-Ouvs_Yvl9kAG10zbahgR3/exec';
+var userId = null;
+var shipmentNo = null;
+
+function getQueryParam(name) {
+  var params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+liff.init({ liffId: LIFF_ID }).then(function () {
+  if (!liff.isLoggedIn()) {
+    liff.login();
+    return;
+  }
+  return liff.getProfile();
+}).then(function (profile) {
+  if (!profile) return;
+  userId = profile.userId;
+  shipmentNo = getQueryParam('shipmentNo');
+
+  if (!shipmentNo) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').textContent = '納品番号が指定されていません。LINEのメッセージのボタンからこの画面を開いてください。';
+    document.getElementById('error').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('shipmentNoDisplay').textContent = shipmentNo;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('form').style.display = 'block';
+}).catch(function (err) {
+  document.getElementById('loading').textContent = 'エラー: ' + err;
+});
+
+document.getElementById('form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('submitBtn');
+  var statusEl = document.getElementById('status');
+  btn.disabled = true;
+  statusEl.textContent = '送信中...';
+
+  var payload = {
+    uid: userId,
+    shipmentNo: shipmentNo,
+    numberWritten: document.getElementById('numberWritten').checked,
+    trackingNumber: document.getElementById('trackingNumber').value
+  };
+
+  fetch(WEB_APP_URL + '?action=submitShipmentConfirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  }).then(function (res) { return res.json(); }).then(function (json) {
+    if (json.status !== 'ok') {
+      statusEl.textContent = 'エラー: ' + (json.message || '送信に失敗しました');
+      btn.disabled = false;
+      return;
+    }
+    statusEl.textContent = '送信が完了しました。このページを閉じてLINEにお戻りください。';
+    document.getElementById('form').querySelectorAll('input,button').forEach(function (el) { el.disabled = true; });
+    setTimeout(function () { liff.closeWindow(); }, 2000);
+  }).catch(function () {
+    statusEl.textContent = 'エラーが発生しました。もう一度お試しください。';
+    btn.disabled = false;
+  });
+});
+</script>
+</body>
+</html>

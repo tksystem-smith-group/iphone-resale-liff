@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>買取依頼登録</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 16px; color: #222; }
+  h1 { font-size: 18px; }
+  p.lede { font-size: 13px; color: #555; margin-top: -4px; }
+  .item-card { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 12px; padding: 12px; position: relative; }
+  .item-card .item-title { font-weight: bold; color: #333; font-size: 13px; margin-bottom: 8px; }
+  label { display: block; margin-top: 10px; font-size: 14px; }
+  input, select { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+  .row { display: flex; gap: 8px; }
+  .row > div { flex: 1; }
+  .remove-btn { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #c00; font-size: 13px; width: auto; padding: 4px 8px; }
+  button.add-btn { width: 100%; padding: 12px; font-size: 14px; background: #fff; color: #06c755; border: 1.5px dashed #06c755; border-radius: 6px; margin: 4px 0 16px; }
+  button.submit-btn { width: 100%; padding: 14px; font-size: 16px; background: #06c755; color: #fff; border: none; border-radius: 6px; margin-top: 8px; }
+  button.submit-btn:disabled { background: #aaa; }
+  #status { margin-top: 12px; font-size: 14px; }
+  #loading { padding: 40px 0; text-align: center; }
+  #result { display: none; text-align: center; padding: 20px 0; }
+  #result .num { font-size: 32px; font-weight: bold; color: #06c755; margin: 12px 0; }
+  #result .example { background: #f4f4f4; border-radius: 6px; padding: 10px; font-size: 14px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div id="loading">読み込み中...</div>
+
+<div id="form-wrap" style="display:none">
+  <h1>買取依頼登録</h1>
+  <p class="lede">送っていただく機種を登録してください。複数機種ある場合は「＋機種を追加」で行を増やせます。</p>
+
+  <div id="items"></div>
+  <button type="button" class="add-btn" id="addItemBtn">＋ 機種を追加</button>
+
+  <button type="button" class="submit-btn" id="submitBtn">登録する</button>
+  <div id="status"></div>
+</div>
+
+<div id="result">
+  <div>買い取り依頼を受け付けました。</div>
+  <div class="num" id="resultShipmentNo"></div>
+  <div class="example">
+    発送の際は、宛先の右側にこの番号を書き添えてください。<br>
+    例：合同会社TKSystem　<span id="resultShipmentNoInline"></span>
+  </div>
+  <p style="font-size:12px;color:#777;margin-top:16px">金額が確定しましたら、改めてLINEでご連絡します。このページを閉じてLINEにお戻りください。</p>
+</div>
+
+<script>
+var LIFF_ID = 'LIFF_ID_SHIPMENT_PLACEHOLDER';
+var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwunrebM2Ppgeg6fxpftXo8sIsDxP5IRGPQ8-oQTiwa7U-Ouvs_Yvl9kAG10zbahgR3/exec';
+var userId = null;
+var itemCount = 0;
+
+var MODELS = ['iPhone 17', 'iPhone 17 Pro', 'iPhone 17 Pro Max', 'iPhone 17 Air', 'その他'];
+var CAPACITIES = ['128GB', '256GB', '512GB', '1TB', 'その他'];
+
+function addItemRow() {
+  itemCount++;
+  var id = itemCount;
+  var card = document.createElement('div');
+  card.className = 'item-card';
+  card.dataset.id = id;
+
+  var modelOptions = MODELS.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join('');
+  var capacityOptions = CAPACITIES.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+
+  card.innerHTML =
+    '<div class="item-title">機種 ' + id + '</div>' +
+    '<button type="button" class="remove-btn" data-remove="' + id + '">削除</button>' +
+    '<label>機種<select class="f-model">' + modelOptions + '</select></label>' +
+    '<div class="row">' +
+    '<div><label>容量<select class="f-capacity">' + capacityOptions + '</select></label></div>' +
+    '<div><label>色<input type="text" class="f-color" placeholder="例: ブルー"></label></div>' +
+    '</div>' +
+    '<label>台数<input type="number" class="f-qty" min="1" value="1"></label>';
+
+  document.getElementById('items').appendChild(card);
+  updateRemoveButtons();
+}
+
+function updateRemoveButtons() {
+  var cards = document.querySelectorAll('.item-card');
+  cards.forEach(function (card) {
+    var btn = card.querySelector('.remove-btn');
+    btn.style.display = cards.length > 1 ? 'block' : 'none';
+  });
+}
+
+document.getElementById('items').addEventListener('click', function (e) {
+  if (e.target.dataset && e.target.dataset.remove) {
+    var card = e.target.closest('.item-card');
+    card.parentNode.removeChild(card);
+    updateRemoveButtons();
+  }
+});
+
+document.getElementById('addItemBtn').addEventListener('click', addItemRow);
+
+liff.init({ liffId: LIFF_ID }).then(function () {
+  if (!liff.isLoggedIn()) {
+    liff.login();
+    return;
+  }
+  return liff.getProfile();
+}).then(function (profile) {
+  if (!profile) return;
+  userId = profile.userId;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('form-wrap').style.display = 'block';
+  addItemRow();
+}).catch(function (err) {
+  document.getElementById('loading').textContent = 'エラー: ' + err;
+});
+
+document.getElementById('submitBtn').addEventListener('click', function () {
+  var btn = this;
+  var statusEl = document.getElementById('status');
+  var cards = document.querySelectorAll('.item-card');
+  var items = [];
+  var valid = true;
+
+  cards.forEach(function (card) {
+    var model = card.querySelector('.f-model').value;
+    var capacity = card.querySelector('.f-capacity').value;
+    var color = card.querySelector('.f-color').value.trim();
+    var qty = Number(card.querySelector('.f-qty').value);
+    if (!color || !qty || qty < 1) valid = false;
+    items.push({ model: model, capacity: capacity, color: color, qty: qty });
+  });
+
+  if (!valid) {
+    statusEl.textContent = '色・台数が未入力の行があります。ご確認ください。';
+    return;
+  }
+
+  btn.disabled = true;
+  statusEl.textContent = '登録中...';
+
+  fetch(WEB_APP_URL + '?action=submitShipment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify({ uid: userId, items: items })
+  }).then(function (res) { return res.json(); }).then(function (json) {
+    if (json.status !== 'ok') {
+      statusEl.textContent = 'エラー: ' + (json.message || '登録に失敗しました');
+      btn.disabled = false;
+      return;
+    }
+    document.getElementById('form-wrap').style.display = 'none';
+    document.getElementById('resultShipmentNo').textContent = json.shipmentNo;
+    document.getElementById('resultShipmentNoInline').textContent = json.shipmentNo;
+    document.getElementById('result').style.display = 'block';
+    setTimeout(function () { liff.closeWindow(); }, 4000);
+  }).catch(function () {
+    statusEl.textContent = 'エラーが発生しました。もう一度お試しください。';
+    btn.disabled = false;
+  });
+});
+</script>
+</body>
+</html>
