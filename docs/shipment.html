@@ -56,8 +56,20 @@ var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwunrebM2Ppgeg6fxpftX
 var userId = null;
 var itemCount = 0;
 
-var MODELS = ['iPhone 17', 'iPhone 17 Pro', 'iPhone 17 Pro Max', 'iPhone 17 Air', 'その他'];
+var MODELS = ['iPhone 17', 'iPhone 17 Pro', 'iPhone 17 Pro Max', 'iPhone Air', 'その他'];
 var CAPACITIES = ['128GB', '256GB', '512GB', '1TB', 'その他'];
+var COLORS_BY_MODEL = {
+  'iPhone 17': ['ラベンダー', 'セージ', 'ホワイト', 'ミストブルー', 'ブラック', 'その他'],
+  'iPhone 17 Pro': ['シルバー', 'コズミックオレンジ', 'ディープブルー', 'その他'],
+  'iPhone 17 Pro Max': ['シルバー', 'コズミックオレンジ', 'ディープブルー', 'その他'],
+  'iPhone Air': ['クラウドホワイト', 'ライトゴールド', 'スペースブラック', 'スカイブルー', 'その他'],
+  'その他': ['その他']
+};
+
+function colorOptionsHtml(model) {
+  var colors = COLORS_BY_MODEL[model] || COLORS_BY_MODEL['その他'];
+  return colors.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+}
 
 function addItemRow() {
   itemCount++;
@@ -75,9 +87,13 @@ function addItemRow() {
     '<label>機種<select class="f-model">' + modelOptions + '</select></label>' +
     '<div class="row">' +
     '<div><label>容量<select class="f-capacity">' + capacityOptions + '</select></label></div>' +
-    '<div><label>色<input type="text" class="f-color" placeholder="例: ブルー"></label></div>' +
+    '<div><label>色<select class="f-color">' + colorOptionsHtml(MODELS[0]) + '</select></label></div>' +
     '</div>' +
     '<label>台数<input type="number" class="f-qty" min="1" value="1"></label>';
+
+  card.querySelector('.f-model').addEventListener('change', function (e) {
+    card.querySelector('.f-color').innerHTML = colorOptionsHtml(e.target.value);
+  });
 
   document.getElementById('items').appendChild(card);
   updateRemoveButtons();
