@@ -57,7 +57,6 @@ var userId = null;
 var itemCount = 0;
 
 var MODELS = ['iPhone 17', 'iPhone 17 Pro', 'iPhone 17 Pro Max', 'iPhone Air', 'その他'];
-var CAPACITIES = ['128GB', '256GB', '512GB', '1TB', 'その他'];
 var COLORS_BY_MODEL = {
   'iPhone 17': ['ラベンダー', 'セージ', 'ホワイト', 'ミストブルー', 'ブラック', 'その他'],
   'iPhone 17 Pro': ['シルバー', 'コズミックオレンジ', 'ディープブルー', 'その他'],
@@ -65,10 +64,24 @@ var COLORS_BY_MODEL = {
   'iPhone Air': ['クラウドホワイト', 'ライトゴールド', 'スペースブラック', 'スカイブルー', 'その他'],
   'その他': ['その他']
 };
+// Apple公式サイトの実際のラインナップに合わせる（存在しない組み合わせを選べないようにする）。
+// 「Apple定価」シート（gas/Code.gs）と機種・容量の表記を一致させること。
+var CAPACITIES_BY_MODEL = {
+  'iPhone 17': ['256GB', '512GB', 'その他'],
+  'iPhone 17 Pro': ['256GB', '512GB', '1TB', 'その他'],
+  'iPhone 17 Pro Max': ['256GB', '512GB', '1TB', '2TB', 'その他'],
+  'iPhone Air': ['256GB', '512GB', '1TB', 'その他'],
+  'その他': ['128GB', '256GB', '512GB', '1TB', '2TB', 'その他']
+};
 
 function colorOptionsHtml(model) {
   var colors = COLORS_BY_MODEL[model] || COLORS_BY_MODEL['その他'];
   return colors.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+}
+
+function capacityOptionsHtml(model) {
+  var capacities = CAPACITIES_BY_MODEL[model] || CAPACITIES_BY_MODEL['その他'];
+  return capacities.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
 }
 
 function addItemRow() {
@@ -79,20 +92,20 @@ function addItemRow() {
   card.dataset.id = id;
 
   var modelOptions = MODELS.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join('');
-  var capacityOptions = CAPACITIES.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
 
   card.innerHTML =
     '<div class="item-title">機種 ' + id + '</div>' +
     '<button type="button" class="remove-btn" data-remove="' + id + '">削除</button>' +
     '<label>機種<select class="f-model">' + modelOptions + '</select></label>' +
     '<div class="row">' +
-    '<div><label>容量<select class="f-capacity">' + capacityOptions + '</select></label></div>' +
+    '<div><label>容量<select class="f-capacity">' + capacityOptionsHtml(MODELS[0]) + '</select></label></div>' +
     '<div><label>色<select class="f-color">' + colorOptionsHtml(MODELS[0]) + '</select></label></div>' +
     '</div>' +
     '<label>台数<input type="number" class="f-qty" min="1" value="1"></label>';
 
   card.querySelector('.f-model').addEventListener('change', function (e) {
     card.querySelector('.f-color').innerHTML = colorOptionsHtml(e.target.value);
+    card.querySelector('.f-capacity').innerHTML = capacityOptionsHtml(e.target.value);
   });
 
   document.getElementById('items').appendChild(card);
