@@ -30,6 +30,8 @@
     <label>氏名<input type="text" id="name" required></label>
     <label>フリガナ<input type="text" id="nameKana" required></label>
     <label>電話番号<input type="tel" id="phone" required></label>
+    <label>メールアドレス（Gmailの方のみ・任意）<input type="email" id="email"></label>
+    <p style="font-size:12px;color:#666;margin:2px 0 0">Apple Storeからの発送メールを自動検知するために使用します。Gmail以外のメールアドレスは対応できません。</p>
   </fieldset>
 
   <fieldset>
@@ -65,6 +67,12 @@
       </select>
     </label>
     <label>画像を選択<input type="file" id="idDocFile" accept="image/*" required></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>古物商登録（任意・お持ちの方のみ）</legend>
+    <p style="font-size:12px;color:#a15c00;margin:4px 0 8px">古物営業法により、2回目以降の買取ご依頼には古物商許可が必要です。お持ちでない場合は空欄のままで構いません（後日、トーク画面で「古物商登録」と送っていただければ登録できます）。</p>
+    <label>古物商許可証番号<input type="text" id="kobutsushoNumber"></label>
   </fieldset>
 
   <label><input type="checkbox" id="agree" style="width:auto;display:inline;margin-right:6px" required>利用規約に同意します（弊社が買取る形での取引となります）</label>
@@ -129,7 +137,9 @@ document.getElementById('form').addEventListener('submit', function (e) {
       idDocType: document.getElementById('idDocType').value,
       idDocFileName: file.name,
       idDocMimeType: file.type,
-      idDocBase64: base64
+      idDocBase64: base64,
+      kobutsushoNumber: document.getElementById('kobutsushoNumber').value,
+      email: document.getElementById('email').value
     };
     return fetch(WEB_APP_URL + '?action=submitProfile', {
       method: 'POST',
