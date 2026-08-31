@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>古物商登録</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 16px; color: #222; }
+  h1 { font-size: 18px; }
+  p.lede { font-size: 13px; color: #555; margin-top: -4px; }
+  label { display: block; margin-top: 14px; font-size: 14px; }
+  input { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+  button { width: 100%; padding: 14px; font-size: 16px; background: #06c755; color: #fff; border: none; border-radius: 6px; margin-top: 20px; }
+  button:disabled { background: #aaa; }
+  #status { margin-top: 12px; font-size: 14px; }
+  #loading { padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<div id="loading">読み込み中...</div>
+
+<form id="form" style="display:none">
+  <h1>古物商登録</h1>
+  <p class="lede">古物営業法により、2回目以降の買取ご依頼には古物商許可が必要です。許可証番号をご入力ください。</p>
+
+  <label>古物商許可証番号<input type="text" id="kobutsushoNumber" required></label>
+
+  <button type="submit" id="submitBtn">登録する</button>
+  <div id="status"></div>
+</form>
+
+<script>
+var LIFF_ID = 'LIFF_ID_KOBUTSUSHO_PLACEHOLDER'; // TODO: LINE Developers ConsoleでLIFFアプリ作成後、実際のLIFF IDに置き換える
+var WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwunrebM2Ppgeg6fxpftXo8sIsDxP5IRGPQ8-oQTiwa7U-Ouvs_Yvl9kAG10zbahgR3/exec';
+var userId = null;
+
+liff.init({ liffId: LIFF_ID }).then(function () {
+  if (!liff.isLoggedIn()) {
+    liff.login();
+    return;
+  }
+  return liff.getProfile();
+}).then(function (profile) {
+  if (!profile) return;
+  userId = profile.userId;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('form').style.display = 'block';
+}).catch(function (err) {
+  document.getElementById('loading').textContent = 'エラー: ' + err;
+});
+
+document.getElementById('form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var btn = document.getElementById('submitBtn');
+  var statusEl = document.getElementById('status');
+  btn.disabled = true;
+  statusEl.textContent = '送信中...';
+
+  var payload = {
+    uid: userId,
+    kobutsushoNumber: document.getElementById('kobutsushoNumber').value
+  };
+
+  fetch(WEB_APP_URL + '?action=submitKobutsusho', {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  }).then(function (res) { return res.json(); }).then(function (json) {
+    if (json.status !== 'ok') {
+      statusEl.textContent = 'エラー: ' + (json.message || '送信に失敗しました');
+      btn.disabled = false;
+      return;
+    }
+    statusEl.textContent = '送信が完了しました。このページを閉じてLINEにお戻りください。';
+    document.getElementById('form').querySelectorAll('input,button').forEach(function (el) { el.disabled = true; });
+    setTimeout(function () { liff.closeWindow(); }, 2000);
+  }).catch(function () {
+    statusEl.textContent = 'エラーが発生しました。もう一度お試しください。';
+    btn.disabled = false;
+  });
+});
+</script>
+</body>
+</html>
